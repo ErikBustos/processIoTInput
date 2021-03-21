@@ -1,21 +1,23 @@
 const router = require('express').Router();
 
-const pushtoDB_URL = 'https://google.com';
+const pushURL = 'https://google.com';
 
 router.get('/', (req, res) =>{
     res.send('Microservice to handle IoT device Inputs');
 })
 
-router.post('/processInput', (req, res) => {
-    const { input } = req.body;
+router.post('/processInputData', (req, res) => {
+    const { time, date, network_id, 
+        sensor_id, user_id, soilHumidity, 
+        airTemp, light , rainDrops} = req.body;
     
-    if (! validateInput(input)) {
+    if (!validateInput(input)) {
         res.status(400).json('bad request, please check your data');
     }
 
     fetch(pushtoDB_URL ,{
         method: 'POST',
-        body: JSON.stringify(formatInputToJson(input)),
+        body: JSON.stringify(req.body),
         headers: { 'Content-Type': 'application/json' }
     })
     .then(res => res.json())
@@ -25,6 +27,8 @@ router.post('/processInput', (req, res) => {
     .catch(err => console.log(err));
 
 });
+
+
 
 
 //Operacion suma
