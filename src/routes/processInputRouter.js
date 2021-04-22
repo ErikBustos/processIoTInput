@@ -1,51 +1,74 @@
 const router = require('express').Router();
+const fetch = require('node-fetch');
+require('dotenv').config();
 
-const pushURL = 'https://google.com';
+const pushURL = process.env.PUSHDB_URL || 'https://project-toolchain-iotpushtodb.mybluemix.net';
+const MAXVALUE_SENSOR = 4095;
 
 router.get('/', (req, res) =>{
     res.send('Microservice to handle IoT device Inputs');
 })
 
-router.post('/processInputData', (req, res) => {
-    const { time, date, network_id, 
-        sensor_id, user_id, soilHumidity, 
-        airTemp, light , rainDrops} = req.body;
+router.post('/processInputData', async (req, res) => {
+    let input = req.body;
     
-    if (!validateInput(input)) {
+    if (!validateInput()) {
         res.status(400).json('bad request, please check your data');
     }
 
-    fetch(pushtoDB_URL ,{
+    let macid = preprocessInput(input);
+    input = {sensorData: input, macid: macid}
+
+    let jsonToSend = JSON.stringify(input);
+
+    let microServiceResponse = {};
+
+    fetch(pushURL+ '/api/pushSensorDatatoDB' ,{
         method: 'POST',
-        body: JSON.stringify(req.body),
+        body: jsonToSend,
         headers: { 'Content-Type': 'application/json' }
     })
-    .then(res => res.json())
+    .then(res =>res.json())
     .then(json => {
-        res.status(202);
+        microServiceResponse = json;
+        console.log(microServiceResponse)
     })
     .catch(err => console.log(err));
+    
 
+    res.status(202).send();
 });
 
 
-
-
-//Operacion suma
-router.post('/suma', (req, res) => {
-    const { nums } = req.body;
-    let valor = 0;
-    for(j=0; j<nums.length; j++)
-        valor = valor+nums[j];
-
-    res.send({ respuesta: valor});
-});
-
-function validateInput(input) {
+function validateInput() {
     let valid = true;
     
     return valid;
 }
 
+//Mofifies the values of soilHumidity,rainDrops,light of the input Json and returns macid Value
+function preprocessInput(input) {
+    let macid={};
+
+    if(input.rainDrops < 4000)
+        input.rainDrops = 'Y';
+    else
+        input.rainDrops = 'N';
+    
+        input.soilHumidity = transformValueToPercentage(input.soilHumidity);
+        input.light = transformValueToPercentage(input.light);
+
+    macid= input.macid;
+    delete input["macid"];
+    
+    return macid;
+}
+
+//transform the input value to a percentage
+function transformValueToPercentage(sensorValue) {
+    let decimalValue = 1-(sensorValue/MAXVALUE_SENSOR);
+    let intValue = decimalValue * 100;
+    return intValue.toFixed(2);
+}
 
 module.exports = router;
